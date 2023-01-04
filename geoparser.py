@@ -97,35 +97,33 @@ def logparse(LOGPATH, WEBSITE, MEASUREMENT, GEOIPDB, INODE, INFLUXDB_VERSION,
                         m = re_IPV6.match(LINE)
                         IP = m.group(1)
 
-                    if ipadd(IP).iptype() == 'PUBLIC' and IP:
-                        INFO = GI.city(IP)
-                        if INFO is not None:
-                            HASH = geohash.encode(INFO.location.latitude, INFO.location.longitude)  # NOQA
-                            COUNT['count'] = 1
-                            GEOHASH['geohash'] = HASH
-                            GEOHASH['host'] = HOSTNAME
-                            GEOHASH['website'] = WEBSITE
-                            GEOHASH['country_code'] = INFO.country.iso_code
-                            GEOHASH['country_name'] = INFO.country.name
-                            GEOHASH['city_name'] = INFO.city.name
-                            if filename is not None:
-                                GEOHASH['filename'] = filename
-                            IPS['tags'] = GEOHASH
-                            IPS['fields'] = COUNT
-                            IPS['measurement'] = MEASUREMENT
-                            METRICS.append(IPS)
-                            # Sending json data itto InfluxDB
-                            try:
-                                if INFLUXDB_VERSION == "1":
-                                    CLIENT.write_points(METRICS)
-                                elif INFLUXDB_VERSION == "2":
-                                    print("Writing to ifdb2" + str(GEOHASH))
-                                    write_api = CLIENT.write_api(write_options=SYNCHRONOUS)  # NOQA
-                                    write_api.write(INFLUXDBBUCKET, INFLUXDBORG, record=METRICS)  # NOQA
-                            except Exception:
-                                logging.exception("Cannot establish connection with InfluxDB server: ")  # NOQA
-                    else:
-                        print("Private IP")
+                    INFO = GI.city(IP)
+                    if INFO is not None:
+                        HASH = geohash.encode(INFO.location.latitude, INFO.location.longitude)  # NOQA
+                        COUNT['count'] = 1
+                        GEOHASH['geohash'] = HASH
+                        GEOHASH['host'] = HOSTNAME
+                        GEOHASH['website'] = WEBSITE
+                        GEOHASH['country_code'] = INFO.country.iso_code
+                        GEOHASH['country_name'] = INFO.country.name
+                        GEOHASH['city_name'] = INFO.city.name
+                        if filename is not None:
+                            GEOHASH['filename'] = filename
+                        IPS['tags'] = GEOHASH
+                        IPS['fields'] = COUNT
+                        IPS['measurement'] = MEASUREMENT
+                        METRICS.append(IPS)
+                        # Sending json data itto InfluxDB
+                        try:
+                            if INFLUXDB_VERSION == "1":
+                                CLIENT.write_points(METRICS)
+                            elif INFLUXDB_VERSION == "2":
+                                print("Writing to ifdb2" + str(GEOHASH))
+                                write_api = CLIENT.write_api(write_options=SYNCHRONOUS)  # NOQA
+                                write_api.write(INFLUXDBBUCKET, INFLUXDBORG, record=METRICS)  # NOQA
+                        except Exception:
+                            logging.exception("Cannot establish connection with InfluxDB server: ")  # NOQA
+
 
 
 def main():
