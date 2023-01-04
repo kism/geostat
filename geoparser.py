@@ -39,7 +39,7 @@ root.addHandler(handler)
 
 def logparse(LOGPATH, WEBSITE, MEASUREMENT, GEOIPDB, INODE, INFLUXDB_VERSION,
             INFLUXHOST=None, INFLUXPORT=None, URL=None, INFLUXDBDB=None, INFLUXUSER=None,
-             INFLUXUSERPASS=None, INFLUXDBTOKEN=None, INFLUXDBBUCKET=None, INFLUXDBORG=None): # NOQA
+             INFLUXUSERPASS=None, INFLUXDBTOKEN=None, INFLUXDBBUCKET=None, INFLUXDBORG=None, EXTENSOIONWHITELIST=None):  # NOQA
     # Preparing variables and params
     IPS = {}
     COUNT = {}
@@ -47,12 +47,12 @@ def logparse(LOGPATH, WEBSITE, MEASUREMENT, GEOIPDB, INODE, INFLUXDB_VERSION,
     HOSTNAME = os.uname()[1]
     if INFLUXDB_VERSION == "1":
         CLIENT = InfluxDBClient(host=INFLUXHOST, port=INFLUXPORT,
-                                username=INFLUXUSER, password=INFLUXUSERPASS, database=INFLUXDBDB) # NOQA
+                                username=INFLUXUSER, password=INFLUXUSERPASS, database=INFLUXDBDB)  # NOQA
     elif INFLUXDB_VERSION == "2":
-        CLIENT = InfluxDBClient2(url=URL, token=INFLUXDBTOKEN, org=INFLUXDBORG) # NOQA
+        CLIENT = InfluxDBClient2(url=URL, token=INFLUXDBTOKEN, org=INFLUXDBORG)  # NOQA
 
     re_IPV4 = re.compile('(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})')
-    re_IPV6 = re.compile('(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))') # NOQA
+    re_IPV6 = re.compile('(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))')  # NOQA
 
     GI = geoip2.database.Reader(GEOIPDB)
     # Main loop that parses log file in tailf style with sending metrics out
@@ -65,43 +65,67 @@ def logparse(LOGPATH, WEBSITE, MEASUREMENT, GEOIPDB, INODE, INFLUXDB_VERSION,
             WHERE = FILE.tell()
             LINE = FILE.readline()
             INODENEW = os.stat(LOGPATH).st_ino
+            filename = ''
             if INODE != INODENEW:
                 return
             if not LINE:
                 time.sleep(1)
                 FILE.seek(WHERE)
             else:
-                if re_IPV4.match(LINE):
-                    m = re_IPV4.match(LINE)
-                    IP = m.group(1)
-                elif re_IPV6.match(LINE):
-                    m = re_IPV6.match(LINE)
-                    IP = m.group(1)
+                skip = True
+                if EXTENSOIONWHITELIST != None:
+                    for extension in EXTENSOIONWHITELIST:
+                        if extension in LINE:
+                            skip = False
+                            try:
+                                print("found extension " + extension)
+                                filename = re.findall("\] \"GET .*\." + extension, LINE)[0]
+                                filename = re.findall("\/.+?" + extension, filename)[0]
+                                print("Filename: " + filename)
+                            except:
+                                print("FAILED!")
+                                filename = None
+                else:
+                    print("no whitelist extension, reading line regardless")
+                    skip = False
 
-                if ipadd(IP).iptype() == 'PUBLIC' and IP:
-                    INFO = GI.city(IP)
-                    if INFO is not None:
-                        HASH = geohash.encode(INFO.location.latitude, INFO.location.longitude) # NOQA
-                        COUNT['count'] = 1
-                        GEOHASH['geohash'] = HASH
-                        GEOHASH['host'] = HOSTNAME
-                        GEOHASH['website'] = WEBSITE
-                        GEOHASH['country_code'] = INFO.country.iso_code
-                        GEOHASH['country_name'] = INFO.country.name
-                        GEOHASH['city_name'] = INFO.city.name
-                        IPS['tags'] = GEOHASH
-                        IPS['fields'] = COUNT
-                        IPS['measurement'] = MEASUREMENT
-                        METRICS.append(IPS)
-                        # Sending json data itto InfluxDB
-                        try:
-                            if INFLUXDB_VERSION == "1":
-                                CLIENT.write_points(METRICS)
-                            elif INFLUXDB_VERSION == "2":
-                                write_api = CLIENT.write_api(write_options=SYNCHRONOUS) # NOQA
-                                write_api.write(INFLUXDBBUCKET, INFLUXDBORG, record=METRICS) # NOQA
-                        except Exception:
-                            logging.exception("Cannot establish connection with InfluxDB server: ") # NOQA
+                if skip == False:
+                    if re_IPV4.match(LINE):
+                        m = re_IPV4.match(LINE)
+                        IP = m.group(1)
+                    elif re_IPV6.match(LINE):
+                        m = re_IPV6.match(LINE)
+                        IP = m.group(1)
+
+                    if ipadd(IP).iptype() == 'PUBLIC' and IP:
+                        INFO = GI.city(IP)
+                        if INFO is not None:
+                            HASH = geohash.encode(INFO.location.latitude, INFO.location.longitude)  # NOQA
+                            COUNT['count'] = 1
+                            GEOHASH['geohash'] = HASH
+                            GEOHASH['host'] = HOSTNAME
+                            GEOHASH['website'] = WEBSITE
+                            GEOHASH['country_code'] = INFO.country.iso_code
+                            GEOHASH['country_name'] = INFO.country.name
+                            GEOHASH['city_name'] = INFO.city.name
+                            if filename is not None:
+                                GEOHASH['filename'] = filename
+                            IPS['tags'] = GEOHASH
+                            IPS['fields'] = COUNT
+                            IPS['measurement'] = MEASUREMENT
+                            METRICS.append(IPS)
+                            # Sending json data itto InfluxDB
+                            try:
+                                if INFLUXDB_VERSION == "1":
+                                    CLIENT.write_points(METRICS)
+                                elif INFLUXDB_VERSION == "2":
+                                    print("Writing to ifdb2" + str(GEOHASH))
+                                    write_api = CLIENT.write_api(write_options=SYNCHRONOUS)  # NOQA
+                                    write_api.write(INFLUXDBBUCKET, INFLUXDBORG, record=METRICS)  # NOQA
+                            except Exception:
+                                logging.exception("Cannot establish connection with InfluxDB server: ")  # NOQA
+                    else:
+                        print("Private IP")
 
 
 def main():
@@ -110,7 +134,13 @@ def main():
     CONFIG = configparser.ConfigParser()
     CONFIG.read(f'{PWD}/settings.ini')
     # Get the InfluxDB version so we can parse only needed part of config
+
     INFLUXDB_VERSION = CONFIG.get('INFLUXDB_VERSION', 'version')
+
+    try:
+        EXTENSOIONWHITELIST = CONFIG.get('NGINX_LOGS', 'extensionwhitelist').split()
+    except:
+        EXTENSOIONWHITELIST = None
 
     if INFLUXDB_VERSION == "1":
         # Getting params from config for version 1
@@ -153,7 +183,7 @@ def main():
                     t = threading.Thread(target=logparse, kwargs={'GEOIPDB': GEOIPDB, 'LOGPATH': log, 'INFLUXHOST': INFLUXHOST,
                                'INODE': INODE, 'WEBSITE': website, 'INFLUXPORT': INFLUXPORT, 'INFLUXDBDB': INFLUXDBDB,
                                'INFLUXUSER': INFLUXUSER, 'MEASUREMENT': MEASUREMENT,
-                               'INFLUXUSERPASS': INFLUXUSERPASS, 'INFLUXDB_VERSION': INFLUXDB_VERSION}, daemon=True, name=website) # NOQA
+                               'INFLUXUSERPASS': INFLUXUSERPASS, 'INFLUXDB_VERSION': INFLUXDB_VERSION, 'EXTENSOIONWHITELIST': EXTENSOIONWHITELIST}, daemon=True, name=website)  # NOQA
                     for thread in threading.enumerate():
                         thread_names.append(thread.name)
                     if website not in thread_names:
@@ -167,7 +197,7 @@ def main():
                 if os.path.exists(log):
                     t = threading.Thread(target=logparse, kwargs={'GEOIPDB': GEOIPDB, 'LOGPATH': log, 'URL': URL, 'INFLUXDBTOKEN': INFLUXDBTOKEN,
                                'INFLUXDBBUCKET': INFLUXDBBUCKET, 'MEASUREMENT': MEASUREMENT, 'INFLUXDB_VERSION': INFLUXDB_VERSION,
-                               'INODE': INODE, 'WEBSITE': website, 'INFLUXDBORG': INFLUXDBORG}, daemon=True, name=website) # NOQA
+                               'INODE': INODE, 'WEBSITE': website, 'INFLUXDBORG': INFLUXDBORG, 'EXTENSOIONWHITELIST': EXTENSOIONWHITELIST}, daemon=True, name=website)  # NOQA
                     for thread in threading.enumerate():
                         thread_names.append(thread.name)
                     if website not in thread_names:
@@ -175,6 +205,7 @@ def main():
                 else:
                     logging.info('Nginx log file %s not found', log)
                     print('Nginx log file %s not found' % log)
+        time.sleep(1)
 
 
 if __name__ == '__main__':
