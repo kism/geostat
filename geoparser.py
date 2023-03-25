@@ -73,7 +73,7 @@ def logparse(LOGPATH, WEBSITE, MEASUREMENT, GEOIPDB, INODE, INFLUXDB_VERSION,
                 FILE.seek(WHERE)
             else:
                 skip = True
-                if EXTENSOIONWHITELIST != None:
+                if EXTENSOIONWHITELIST != None: # KIERAN THIS IS YOUR CODE!
                     for extension in EXTENSOIONWHITELIST:
                         if extension in LINE:
                             skip = False
