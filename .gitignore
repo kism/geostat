@@ -1,3 +1,5 @@
 *.pyc
 settings.ini
 venv/
+env/
+GeoLite2-City.mmdb
