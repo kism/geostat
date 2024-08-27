@@ -19,7 +19,6 @@ import configparser
 from influxdb import InfluxDBClient
 from influxdb_client import InfluxDBClient as InfluxDBClient2
 from influxdb_client.client.write_api import SYNCHRONOUS
-from IPy import IP as ipadd
 import threading
 
 
@@ -39,7 +38,7 @@ root.addHandler(handler)
 
 def logparse(LOGPATH, WEBSITE, MEASUREMENT, GEOIPDB, INODE, INFLUXDB_VERSION,
             INFLUXHOST=None, INFLUXPORT=None, URL=None, INFLUXDBDB=None, INFLUXUSER=None,
-             INFLUXUSERPASS=None, INFLUXDBTOKEN=None, INFLUXDBBUCKET=None, INFLUXDBORG=None, EXTENSOIONWHITELIST=None):  # NOQA
+             INFLUXUSERPASS=None, INFLUXDBTOKEN=None, INFLUXDBBUCKET=None, INFLUXDBORG=None, EXTENSION_ALLOW_LIST=None):  # NOQA
     # Preparing variables and params
     IPS = {}
     COUNT = {}
@@ -73,23 +72,23 @@ def logparse(LOGPATH, WEBSITE, MEASUREMENT, GEOIPDB, INODE, INFLUXDB_VERSION,
                 FILE.seek(WHERE)
             else:
                 skip = True
-                if EXTENSOIONWHITELIST != None: # KIERAN THIS IS YOUR CODE!
-                    for extension in EXTENSOIONWHITELIST:
+                if EXTENSION_ALLOW_LIST: # KIERAN THIS IS YOUR CODE!
+                    for extension in EXTENSION_ALLOW_LIST:
                         if extension in LINE:
                             skip = False
                             try:
-                                print("found extension " + extension)
+                                logging.debug("found extension " + extension)
                                 filename = re.findall("\] \"GET .*\." + extension, LINE)[0]
                                 filename = re.findall("\/.+?" + extension, filename)[0]
-                                print("Filename: " + filename)
+                                logging.debug("Filename: %s", filename)
                             except:
-                                print("FAILED!")
+                                logging.debug("FAILED!")
                                 filename = None
                 else:
-                    print("no whitelist extension, reading line regardless")
+                    logging.info("no whitelist extension, reading line regardless")
                     skip = False
 
-                if skip == False:
+                if not skip:
                     if re_IPV4.match(LINE):
                         m = re_IPV4.match(LINE)
                         IP = m.group(1)
@@ -118,7 +117,7 @@ def logparse(LOGPATH, WEBSITE, MEASUREMENT, GEOIPDB, INODE, INFLUXDB_VERSION,
                             if INFLUXDB_VERSION == "1":
                                 CLIENT.write_points(METRICS)
                             elif INFLUXDB_VERSION == "2":
-                                print("Writing to ifdb2" + str(GEOHASH))
+                                logging.debug("Writing to ifdb2" + str(GEOHASH))
                                 write_api = CLIENT.write_api(write_options=SYNCHRONOUS)  # NOQA
                                 write_api.write(INFLUXDBBUCKET, INFLUXDBORG, record=METRICS)  # NOQA
                         except Exception:
@@ -136,9 +135,9 @@ def main():
     INFLUXDB_VERSION = CONFIG.get('INFLUXDB_VERSION', 'version')
 
     try:
-        EXTENSOIONWHITELIST = CONFIG.get('NGINX_LOGS', 'extensionwhitelist').split()
+        EXTENSION_ALLOW_LIST = CONFIG.get('NGINX_LOGS', 'extension_allow_list').split()
     except:
-        EXTENSOIONWHITELIST = None
+        EXTENSION_ALLOW_LIST = None
 
     if INFLUXDB_VERSION == "1":
         # Getting params from config for version 1
@@ -172,7 +171,6 @@ def main():
                 INODE = os.stat(log).st_ino
             else:
                 logging.info('Nginx log file %s not found', log)
-                print('Nginx log file %s not found' % log)
                 return
             if INFLUXDB_VERSION == "1":
                 # Run the main loop and grep data in separate threads
@@ -181,28 +179,26 @@ def main():
                     t = threading.Thread(target=logparse, kwargs={'GEOIPDB': GEOIPDB, 'LOGPATH': log, 'INFLUXHOST': INFLUXHOST,
                                'INODE': INODE, 'WEBSITE': website, 'INFLUXPORT': INFLUXPORT, 'INFLUXDBDB': INFLUXDBDB,
                                'INFLUXUSER': INFLUXUSER, 'MEASUREMENT': MEASUREMENT,
-                               'INFLUXUSERPASS': INFLUXUSERPASS, 'INFLUXDB_VERSION': INFLUXDB_VERSION, 'EXTENSOIONWHITELIST': EXTENSOIONWHITELIST}, daemon=True, name=website)  # NOQA
+                               'INFLUXUSERPASS': INFLUXUSERPASS, 'INFLUXDB_VERSION': INFLUXDB_VERSION, 'EXTENSION_ALLOW_LIST': EXTENSION_ALLOW_LIST}, daemon=True, name=website)  # NOQA
                     for thread in threading.enumerate():
                         thread_names.append(thread.name)
                     if website not in thread_names:
                         t.start()
                 else:
                     logging.info('Nginx log file %s not found', log)
-                    print('Nginx log file %s not found' % log)
             elif INFLUXDB_VERSION == "2":
                 # Run the main loop and grep data in separate threads
                 t = website
                 if os.path.exists(log):
                     t = threading.Thread(target=logparse, kwargs={'GEOIPDB': GEOIPDB, 'LOGPATH': log, 'URL': URL, 'INFLUXDBTOKEN': INFLUXDBTOKEN,
                                'INFLUXDBBUCKET': INFLUXDBBUCKET, 'MEASUREMENT': MEASUREMENT, 'INFLUXDB_VERSION': INFLUXDB_VERSION,
-                               'INODE': INODE, 'WEBSITE': website, 'INFLUXDBORG': INFLUXDBORG, 'EXTENSOIONWHITELIST': EXTENSOIONWHITELIST}, daemon=True, name=website)  # NOQA
+                               'INODE': INODE, 'WEBSITE': website, 'INFLUXDBORG': INFLUXDBORG, 'EXTENSION_ALLOW_LIST': EXTENSION_ALLOW_LIST}, daemon=True, name=website)  # NOQA
                     for thread in threading.enumerate():
                         thread_names.append(thread.name)
                     if website not in thread_names:
                         t.start()
                 else:
                     logging.info('Nginx log file %s not found', log)
-                    print('Nginx log file %s not found' % log)
         time.sleep(1)
 
 

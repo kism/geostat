@@ -1,7 +1,7 @@
 [NGINX_LOGS]
 # Path for the log file (Nginx)
 logpath = website1:/var/log/website1/access.log website2:/var/log/website2/access.log
-extensionwhitelist =
+extension_allow_list =
 
 [GEOIP]
 # Path for the GEOIP DB file

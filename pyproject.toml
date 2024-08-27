@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "geostat"
+version = "0.1.0"
+description = ""
+authors = ["Kieran Gee <kieran.lost.the.game@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+configparser = "^7.1.0"
+influxdb = "^5.3.2"
+geoip2 = "^2.9.0"
+influxdb-client = "^1.45.0"
+ipy = "^1.1"
+
+[tool.poetry.dev-dependencies]
+ruff = "*"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
