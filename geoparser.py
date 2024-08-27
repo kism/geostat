@@ -159,6 +159,11 @@ def main():
         MEASUREMENT = CONFIG.get('INFLUXDB2', 'measurement')
         INFLUXDBORG = CONFIG.get('INFLUXDB2', 'organization')
 
+    logging.info("Starting GeoStat")
+    logging.info("INFLUXDB_VERSION: %s", INFLUXDB_VERSION)
+    logging.info("EXTENSION_ALLOW_LIST: %s", EXTENSION_ALLOW_LIST)
+
+
     # Parsing log file and sending metrics to Influxdb
     while True:
         logs = []
