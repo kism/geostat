@@ -22,18 +22,19 @@ from influxdb_client.client.write_api import SYNCHRONOUS
 import threading
 
 
-class SyslogBOMFormatter(logging.Formatter):
-    def format(self, record):
-        result = super().format(record)
-        return "ufeff" + result
+# class SyslogBOMFormatter(logging.Formatter):
+#     def format(self, record):
+#         result = super().format(record)
+#         return "ufeff" + result
 
 
-handler = logging.handlers.SysLogHandler('/dev/log')
-formatter = SyslogBOMFormatter(logging.BASIC_FORMAT)
-handler.setFormatter(formatter)
-root = logging.getLogger(__name__)
-root.setLevel(os.environ.get("LOGLEVEL", "INFO"))
-root.addHandler(handler)
+# handler = logging.handlers.SysLogHandler('/dev/log')
+# formatter = SyslogBOMFormatter(logging.BASIC_FORMAT)
+# handler.setFormatter(formatter)
+# root = logging.getLogger(__name__)
+# root.setLevel(os.environ.get("LOGLEVEL", "INFO"))
+# root.addHandler(handler)
+logging.basicConfig(level=logging.INFO)
 
 
 def logparse(LOGPATH, WEBSITE, MEASUREMENT, GEOIPDB, INODE, INFLUXDB_VERSION,
